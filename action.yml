@@ -1,5 +1,5 @@
 name: Snyk Static Check
-description: A reusable composite action to run Snyk IaC or Python dependency scans
+description: A reusable composite action to run Snyk IaC or Code dependency scans
 
 inputs:
   snyk-org:
@@ -84,10 +84,10 @@ runs:
       shell: bash
       continue-on-error: true
 
-    - name: Run Snyk Python Dependency Scan
-      if: ${{ inputs.scan-mode == 'python' }}
+    - name: Run Snyk Code Dependency Scan
+      if: ${{ inputs.scan-mode == 'code' }}
       run: |
-        CMD="snyk test --file=${{ inputs.python-file }} --severity-threshold=${{ inputs.severity-threshold }}"
+        CMD="snyk test --file=${{ inputs.code-file }} --severity-threshold=${{ inputs.severity-threshold }}"
         if [[ "${{ inputs.skip-unresolved }}" == "true" ]]; then
           CMD="$CMD --skip-unresolved"
         fi
