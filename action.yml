@@ -64,7 +64,8 @@ inputs:
   install-requirements:
     description: Whether to install Python requirements before scanning
     required: false
-    default: "false"
+    type: boolean
+    default: false
   
 
 runs:
