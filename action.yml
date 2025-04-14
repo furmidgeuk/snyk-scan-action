@@ -135,20 +135,6 @@ runs:
           const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
           const vulns = results.vulnerabilities || [];
 
-          if (vulns.length === 0) {
-            console.log('No vulnerabilities found.');
-            return;
-          }
-
-          let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
-          for (const v of vulns) {
-            const pkg = v.packageName || v.moduleName || 'unknown';
-            const version = v.version || 'unknown';
-            const severity = v.severity || 'unknown';
-            const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
-            table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
-          }
-
           const number = context.payload.pull_request?.number ?? context.issue?.number;
           if (!number) {
             console.log('Not running in a pull request context');
@@ -162,7 +148,7 @@ runs:
           });
 
           const existing = comments.data.find(c =>
-            c.user.type === 'Bot' && c.body.includes('| Package | Version | Severity | Title |')
+            c.body.includes('<!-- snyk-scan-comment -->')
           );
 
           if (vulns.length === 0) {
@@ -180,20 +166,30 @@ runs:
             return;
           }
 
-          const body = `## 🔍 Snyk Scan Results\n\n${table}`;
+          // Build Markdown table
+          let table = '| Package | Version | Severity | Title |\\n|---------|---------|----------|-------|\\n';
+          for (const v of vulns) {
+            const pkg = v.packageName || v.moduleName || 'unknown';
+            const version = v.version || 'unknown';
+            const severity = v.severity || 'unknown';
+            const title = (v.title || 'unknown').replace(/\\|/g, '-').slice(0, 80);
+            table += `| ${pkg} | ${version} | ${severity} | ${title} |\\n`;
+          }
 
-                    if (existing) {
-                      await github.rest.issues.updateComment({
-                        comment_id: existing.id,
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        body,
-                      });
-                    } else {
-                      await github.rest.issues.createComment({
-                        issue_number: number,
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        body,
-                      });
-                    }
+          const body = `<!-- snyk-scan-comment -->\\n## 🔍 Snyk Scan Results\\n\\n${table}`;
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              comment_id: existing.id,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              issue_number: number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+          }
