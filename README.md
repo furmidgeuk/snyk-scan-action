@@ -8,7 +8,7 @@
 - Detect vulnerabilities and optionally report them directly in pull requests.
 - Customize severity thresholds.
 - Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
-- Supports `.snyk` policy files to ignore known/approved issues.
+- Supports `.snyk` policy files to ignore known/approved issues, including custom paths.
 - Outputs scan results to a JSON file for further use in workflows or audit logs.
 
 ## 📦 Inputs
@@ -26,6 +26,7 @@
 | `json_output_file`          | Path to save the output of the scan in JSON format.                                                                                                     | ❌       | `snyk.json`       |
 | `update_pr_with_scan_results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
 | `use-policy-file`           | Whether to use a `.snyk` policy file to ignore known/approved issues.                                                                                   | ❌       | `true`            |
+| `policy-file-path`          | Path to a custom `.snyk` policy file (relative to the repo root).                                                                                       | ❌       | `.`               |
 
 ---
 
@@ -52,6 +53,7 @@ jobs:
           severity-threshold: "high"
           update_pr_with_scan_results: true
           use-policy-file: true
+          policy-file-path: "./security/.snyk"
 ```
 
 > ✅ **Note:** If `update_pr_with_scan_results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
