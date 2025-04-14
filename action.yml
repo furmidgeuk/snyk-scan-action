@@ -135,7 +135,6 @@ runs:
           }
 
           const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-          # console.log('📦 Parsed Snyk results:', JSON.stringify(results, null, 2));
 
           const isIacScan = Array.isArray(results) && results[0]?.targetFile !== undefined;
           let body = '';
