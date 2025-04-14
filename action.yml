@@ -170,6 +170,7 @@ runs:
             if (vulns.length === 0) {
               console.log('No vulnerabilities found.');
               if (existing) {
+                console.log('Looking for existing comments.');
                 await github.rest.issues.deleteComment({
                   comment_id: existing.id,
                   owner: context.repo.owner,
@@ -192,6 +193,7 @@ runs:
           }
 
           if (existing) {
+            console.log('Updating existing comments.');
             await github.rest.issues.updateComment({
               comment_id: existing.id,
               owner: context.repo.owner,
@@ -199,6 +201,7 @@ runs:
               body,
             });
           } else {
+            console.log('Creating new comments.');
             await github.rest.issues.createComment({
               issue_number: number,
               owner: context.repo.owner,
