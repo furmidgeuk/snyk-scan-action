@@ -191,8 +191,8 @@ runs:
               const pkg = v.packageName || v.moduleName || 'unknown';
               const version = v.version || 'unknown';
               const severity = v.severity || 'unknown';
-              const title = (v.title || 'unknown').replace(/\\|/g, '-').slice(0, 80);
-              table += `| ${pkg} | ${version} | ${severity} | ${title} |\\n`;
+              const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
+              table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
             }
 
             body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
