@@ -1,0 +1,43 @@
+name: Test Snyk scan action
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run action
+      id: snyk-scan-action
+      uses: ./ # Uses an action in the root directory
+      with:
+        snyk-org: ${{ secrets.SNYK_ORG }}
+        snyk-endpoint: ${{ secrets.SNYK_ENDPOINT }}
+        snyk-token: ${{ secrets.SNYK_TOKEN }}
+        severity-threshold: 'high'
+        scan-mode: iac
+        json-file-output: 'snyk.json'
+        update_pr_with_scan_results: true
+
+    - name: Check scan results
+      run: |
+        # Parse the Snyk scan output
+        scan_output=$(cat ${{ steps.snyk-scan-action.outputs.JSON_FILE_OUTPUT }})
+
+        # Get the severity level from the previous step
+        severity="${{ steps.snyk-scan-action.outputs.SEVERITY_THRESHOLD }}"
+
+        # Check the scan output for the specific severity level
+        if [[ $scan_output == *"$severity severity"* ]]; then
+          echo "Scan results check failed"
+          exit 1
+        else
+          echo "Scan results check passed"
+        fi

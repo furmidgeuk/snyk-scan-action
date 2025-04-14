@@ -1,0 +1,169 @@
+name: Snyk Static Check
+description: A reusable composite action to run Snyk IaC or Python dependency scans
+
+inputs:
+  snyk-org:
+    description: The Snyk organization
+    required: true
+
+  snyk-endpoint:
+    description: The custom Snyk API endpoint (optional if using default)
+    required: false
+    default: ""
+
+  snyk-token:
+    description: The Snyk API token
+    required: true
+
+  severity-threshold:
+    description: Minimum severity threshold to report (low, medium, high, critical)
+    required: false
+    default: "low"
+
+  scan-mode:
+    description: Choose which type of scan to run(iac or code)
+    required: true
+
+  code-file:
+    description: The dependency file to scan (e.g., requirements.txt, poetry.lock)
+    required: false
+    default: "requirements.txt"
+
+  skip-unresolved:
+    description: Add the --skip-unresolved flag (true/false)
+    required: false
+    default: "false"
+
+  exclude-licenses:
+    description: Add the --exclude-licenses flag (true/false)
+    required: false
+    default: "false"
+
+  json_output_file:
+    required: false
+    type: 'string'
+    description: 'Snyk JSON file output'
+    default: snyk.json
+
+  update_pr_with_scan_results:
+    required: false
+    type: boolean
+    description: 'Update PR with scan results'
+    default: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install Snyk CLI
+      run: npm install -g snyk --quiet
+      shell: bash
+
+    - name: Configure Snyk Organization and Endpoint
+      run: |
+        snyk config set org=${{ inputs.snyk-org }}
+        if [[ -n "${{ inputs.snyk-endpoint }}" ]]; then
+          snyk config set endpoint=${{ inputs.snyk-endpoint }}
+        fi
+      shell: bash
+
+    - name: Authenticate Snyk
+      run: |
+        if [[ -z "${{ inputs.snyk-token }}" ]]; then
+          echo "Error: SNYK_TOKEN is not set"
+          exit 1
+        fi
+        snyk auth "${{ inputs.snyk-token }}"
+      shell: bash
+
+    - name: Run Snyk IaC Scan
+      if: ${{ inputs.scan-mode == 'iac' }}
+      run: snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json_output_file }}
+      shell: bash
+      continue-on-error: true
+
+    - name: Run Snyk Python Dependency Scan
+      if: ${{ inputs.scan-mode == 'python' }}
+      run: |
+        CMD="snyk test --file=${{ inputs.python-file }} --severity-threshold=${{ inputs.severity-threshold }}"
+        if [[ "${{ inputs.skip-unresolved }}" == "true" ]]; then
+          CMD="$CMD --skip-unresolved"
+        fi
+        if [[ "${{ inputs.exclude-licenses }}" == "true" ]]; then
+          CMD="$CMD --exclude-licenses"
+        fi
+        CMD="$CMD --json-file-output=${{ inputs.json_output_file }}"
+
+        echo "Running: $CMD"
+        eval "$CMD"
+      shell: bash
+      continue-on-error: true
+
+    - name: Post results to PR
+      if: ${{ always() && inputs.update_pr_with_scan_results }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+
+          const filePath = path.resolve('${{ inputs.json_output_file }}');
+          if (!fs.existsSync(filePath)) {
+            console.log('Snyk output file not found:', filePath);
+            return;
+          }
+
+          const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const vulns = results.vulnerabilities || [];
+
+          if (vulns.length === 0) {
+            console.log('No vulnerabilities found.');
+            return;
+          }
+
+          // Build Markdown table
+          let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
+          for (const v of vulns) {
+            const pkg = v.packageName || v.moduleName || 'unknown';
+            const version = v.version || 'unknown';
+            const severity = v.severity || 'unknown';
+            const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
+            table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
+          }
+
+          const number = context.payload.pull_request?.number ?? context.issue?.number;
+          if (!number) {
+            console.log('Not running in a pull request context');
+            return;
+          }
+
+          // Post or update comment
+          const comments = await github.rest.issues.listComments({
+            issue_number: number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+
+          const existing = comments.data.find(c =>
+            c.user.type === 'Bot' && c.body.includes('| Package | Version | Severity | Title |')
+          );
+
+          const body = `## 🔍 Snyk Scan Results\n\n${table}`;
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              comment_id: existing.id,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              issue_number: number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+          }
