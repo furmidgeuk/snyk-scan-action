@@ -196,7 +196,7 @@ runs:
               table += `| ${pkg} | ${version} | ${severity} | ${title} |\\n`;
             }
 
-            body = `${marker}\\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
+            body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
           }
 
           if (existing) {
