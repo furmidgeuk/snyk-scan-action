@@ -39,13 +39,13 @@ inputs:
     required: false
     default: "false"
 
-  json_output_file:
+  json-output-file:
     required: false
     type: string
     description: Snyk JSON file output
     default: snyk.json
 
-  update_pr_with_scan_results:
+  update-pr-with-scan-results:
     required: false
     type: boolean
     description: Update PR with scan results
@@ -97,7 +97,7 @@ runs:
 
     - name: Run Snyk IaC Scan
       if: ${{ inputs.scan-mode == 'iac' }}
-      run: snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json_output_file }}
+      run: snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json-output-file }}
       shell: bash
       continue-on-error: true
 
@@ -125,7 +125,7 @@ runs:
           CMD="$CMD --policy-path=${{ inputs.policy-file-path }}"
         fi
 
-        CMD="$CMD --json-file-output=${{ inputs.json_output_file }}"
+        CMD="$CMD --json-file-output=${{ inputs.json-output-file }}"
 
         echo "Running: $CMD"
         eval "$CMD"
@@ -133,7 +133,7 @@ runs:
       continue-on-error: true
 
     - name: Post results to PR
-      if: ${{ always() && inputs.update_pr_with_scan_results }}
+      if: ${{ always() && inputs.update-pr-with-scan-results }}
       uses: actions/github-script@v7
       with:
         script: |
@@ -142,7 +142,7 @@ runs:
           const codeMarker = '<!-- snyk-scan-comment-code -->';
           const iacMarker = '<!-- snyk-scan-comment-iac -->';
 
-          const filePath = path.resolve('${{ inputs.json_output_file }}');
+          const filePath = path.resolve('${{ inputs.json-output-file }}');
           if (!fs.existsSync(filePath)) {
             console.log('❌ Snyk output file not found:', filePath);
             return;

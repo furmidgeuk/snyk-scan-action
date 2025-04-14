@@ -25,8 +25,8 @@
 | `install-requirements`      | Whether to install Python requirements before scanning (code scans only). Improves detection of transitive dependencies.                              | ❌       | `false`           |
 | `skip-unresolved`           | Whether to use `--skip-unresolved` in code scan. Must be `true` or `false`.                                                                            | ❌       | `false`           |
 | `exclude-licenses`          | Whether to use `--exclude-licenses` in code scan. Must be `true` or `false`.                                                                           | ❌       | `false`           |
-| `json_output_file`          | Path to save the output of the scan in JSON format.                                                                                                     | ❌       | `snyk.json`       |
-| `update_pr_with_scan_results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
+| `json-output-file`          | Path to save the output of the scan in JSON format.                                                                                                     | ❌       | `snyk.json`       |
+| `update-pr-with-scan-results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
 | `use-policy-file`           | Whether to use a `.snyk` policy file to ignore known/approved issues.                                                                                   | ❌       | `true`            |
 | `policy-file-path`          | Path to a custom `.snyk` policy file (relative to the repo root).                                                                                       | ❌       | `.`               |
 
@@ -53,13 +53,13 @@ jobs:
           scan-mode: code
           code-file: "requirements.txt"
           severity-threshold: "high"
-          update_pr_with_scan_results: true
+          update-pr-with-scan-results: true
           use-policy-file: true
           policy-file-path: "./security/.snyk"
           install-requirements: true
 ```
 
-> ✅ **Note:** If `update_pr_with_scan_results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
+> ✅ **Note:** If `update-pr-with-scan-results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
 
 ---
 

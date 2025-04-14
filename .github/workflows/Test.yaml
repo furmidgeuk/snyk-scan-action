@@ -24,7 +24,7 @@ jobs:
         severity-threshold: 'high'
         scan-mode: iac
         json-file-output: 'snyk.json'
-        update_pr_with_scan_results: true
+        update-pr-with-scan-results: true
 
     - name: Check scan results
       run: |
