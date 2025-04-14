@@ -1,63 +1,90 @@
-# snyk-scan-action
+# 🔍 snyk-scan-action
 
-"Snyk Scan" is a reusable workflow for scanning both Infrastructure as Code (IaC) files and source code using Snyk.
+`snyk-scan-action` is a **custom reusable GitHub Action** for running **Snyk scans** on your code or Infrastructure as Code (IaC) files. It identifies vulnerabilities, generates a JSON report, and can optionally comment on pull requests with the scan results.
 
-- It identifies security vulnerabilities, provides a detailed report, and can update pull requests with scan results.
-- Integrating into your GitHub Actions workflows as part of the CI/CD pipeline is easy.
-- It allows determining how to acct on vunerability detection to continue or failure pipeline.
-- It allows to define the level of severity to fail the pipeline.
+## ✨ Features
 
-## Usage
+- Scan source code or IaC using Snyk.
+- Detect vulnerabilities and optionally report them directly in pull requests.
+- Customize severity thresholds.
+- Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
+- Outputs scan results to a JSON file for further use in workflows or audit logs.
 
-To use this workflow in your GitHub Actions, add the following step to your workflow file:
+## 📦 Inputs
 
-```yaml
-- name: Snyk scan
-  uses: furmidgeuk/snyk-scan-action@v1.0.0
-  with:
-    # your inputs here
-```
+| Input                        | Description                                                                                                                                           | Required | Default           |
+|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------|
+| `snyk-token`                | Your [Snyk API token](https://docs.snyk.io/getting-started/how-to-obtain-and-authenticate-with-your-snyk-api-token).                                 | ✅       | N/A               |
+| `snyk-org`                  | Your [Snyk Organization ID](https://docs.snyk.io/snyk-cli/scan-and-maintain-projects-using-the-cli/using-snyk-code-from-the-cli/set-the-snyk-organization-for-the-cli-tests). | ✅       | N/A               |
+| `snyk-endpoint`             | (Optional) Custom Snyk API endpoint. Useful for self-hosted Snyk.                                                                                      | ❌       | `""`              |
+| `scan-mode`                 | Choose the scan mode: `iac` for Infrastructure as Code or `code` for dependency scanning.                                                              | ✅       | N/A               |
+| `severity-threshold`        | Minimum severity level to report: `low`, `medium`, `high`, or `critical`.                                                                             | ❌       | `low`             |
+| `code-file`                 | Path to the dependency file (e.g., `requirements.txt`, `package.json`). Only used in `code` scan mode.                                                 | ❌       | `requirements.txt`|
+| `skip-unresolved`           | Whether to use `--skip-unresolved` in code scan. Must be `true` or `false`.                                                                            | ❌       | `false`           |
+| `exclude-licenses`          | Whether to use `--exclude-licenses` in code scan. Must be `true` or `false`.                                                                           | ❌       | `false`           |
+| `json_output_file`          | Path to save the output of the scan in JSON format.                                                                                                     | ❌       | `snyk.json`       |
+| `update_pr_with_scan_results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
 
-| Input                     | Description                                                       | Required | Default     |
-| ------------------------- | ----------------------------------------------------------------- | -------- | ----------- |
-| `SNYK_TOKEN`     | Please see  [SNYK_TOKEN](https://docs.snyk.io/getting-started/how-to-obtain-and-authenticate-with-your-snyk-api-token)| Yes       |        |
-| `SNYK_ORG_ID`     | Please see  [SNYK_ORG_ID](https://docs.snyk.io/snyk-cli/scan-and-maintain-projects-using-the-cli/using-snyk-code-from-the-cli/set-the-snyk-organization-for-the-cli-tests) | Yes       |        |
-| `SEVERITY_THRESHOLD`     | The severity threshold for Snyk. Only issues of this severity or higher will be reported. Allowed values `low`, `medium`, `high`, `critical` | No       | `low`       |
-| `FILE`                   | The IaC file or directory to scan. Can use wildcard like `templates/*`, `example-*`  ect..                           | No       | `*` (any file) |
-| `JSON_FILE_OUTPUT`       | The output file for the Snyk scan results in JSON format.         | No       | `snyk.json` |
-| `update_pr_with_scan_results` | Whether to update the pull request with the scan results.      | No       | `false`      |
-|       | |        |      |
+---
 
-Example usage:
+## 🚀 Example Usage
 
-```yaml
-      - name: Snyk scan
-        id: snyk-scan
-        uses: furmidgeuk/snyk-scan-action@v1.0.0
-        continue-on-error: true
-        with:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-          SNYK_ORG_ID: ${{ secrets.SNYK_ORG_ID }}
-          SEVERITY_THRESHOLD: "critical"
-          FILE: "example-*"
-          update_pr_with_scan_results: true
-
-```
-
-If `update_pr_with_scan_results` set to `true`, the action will add a comment to the PR with the scan results.  
-Add permissions to the workflow to allow the action to add comments to the PR:
+Here is a basic example for using the action:
 
 ```yaml
 permissions:
   issues: write
   pull-requests: write
+
+jobs:
+  snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Snyk scan
+        uses: furmidgeuk/snyk-scan-action@v1.0.0
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          snyk-org: ${{ secrets.SNYK_ORG }}
+          scan-mode: code
+          code-file: "requirements.txt"
+          severity-threshold: "high"
+          update_pr_with_scan_results: true
 ```
-Comment example:
+
+> ✅ **Note:** If `update_pr_with_scan_results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
+
+---
+
+## 💬 Pull Request Comment Example
+
+If vulnerabilities are found, the action will post a Markdown-formatted summary as a comment on the PR:
 
 ![Snyk scan result comment](https://imgur.com/YTOHD9l.png)
 
-## To Do
+---
 
-- [ ] Improve the PR comment with scan results. Currently, the action adds a comment to the PR with the scan results when `update_pr_with_scan_results` is set to `true`. You could enhance this feature by formatting the comment to make it easier to read, or by including additional information in the comment.
-- [ ] Add support for other Snyk features. Snyk offers many features beyond IaC security scanning. You could extend your action to support other Snyk features, like container scanning or open source dependency scanning.
-- [ ] Add issues exclusion.
+## 🛠️ Development To-Do
+
+- [ ] Improve formatting of PR scan result comments (e.g., sorting, badges, clickable links).
+- [ ] Add support for additional scan modes like `container` or `open source`.
+- [ ] Add support for excluding known/approved issues via a `.snyk` policy file or ignore rules.
+
+---
+
+## 📚 References
+
+- [Snyk CLI Documentation](https://docs.snyk.io/snyk-cli)
+- [Snyk API Token](https://docs.snyk.io/getting-started/how-to-obtain-and-authenticate-with-your-snyk-api-token)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+
+---
+
+## 🤝 Contributing
+
+Feel free to fork, open issues, or submit pull requests to improve this action. All contributions are welcome!
+
+---
+
+## 📄 License
+
+MIT © 2025 [furmidgeuk](https://github.com/furmidgeuk)
