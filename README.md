@@ -8,6 +8,7 @@
 - Detect vulnerabilities and optionally report them directly in pull requests.
 - Customize severity thresholds.
 - Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
+- Supports `.snyk` policy files to ignore known/approved issues.
 - Outputs scan results to a JSON file for further use in workflows or audit logs.
 
 ## 📦 Inputs
@@ -24,6 +25,7 @@
 | `exclude-licenses`          | Whether to use `--exclude-licenses` in code scan. Must be `true` or `false`.                                                                           | ❌       | `false`           |
 | `json_output_file`          | Path to save the output of the scan in JSON format.                                                                                                     | ❌       | `snyk.json`       |
 | `update_pr_with_scan_results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
+| `use-policy-file`           | Whether to use a `.snyk` policy file to ignore known/approved issues.                                                                                   | ❌       | `true`            |
 
 ---
 
@@ -49,6 +51,7 @@ jobs:
           code-file: "requirements.txt"
           severity-threshold: "high"
           update_pr_with_scan_results: true
+          use-policy-file: true
 ```
 
 > ✅ **Note:** If `update_pr_with_scan_results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
@@ -65,9 +68,9 @@ If vulnerabilities are found, the action will post a Markdown-formatted summary 
 
 ## 🛠️ Development To-Do
 
+- [x] Support `.snyk` policy files to exclude known/approved vulnerabilities.
 - [ ] Improve formatting of PR scan result comments (e.g., sorting, badges, clickable links).
 - [ ] Add support for additional scan modes like `container` or `open source`.
-- [ ] Add support for excluding known/approved issues via a `.snyk` policy file or ignore rules.
 
 ---
 

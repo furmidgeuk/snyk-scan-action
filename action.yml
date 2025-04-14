@@ -41,15 +41,25 @@ inputs:
 
   json_output_file:
     required: false
-    type: 'string'
-    description: 'Snyk JSON file output'
+    type: string
+    description: Snyk JSON file output
     default: snyk.json
 
   update_pr_with_scan_results:
     required: false
     type: boolean
-    description: 'Update PR with scan results'
+    description: Update PR with scan results
     default: false
+
+  use-policy-file:
+    description: Whether to use a .snyk policy file to ignore known/approved issues
+    required: false
+    default: "true"
+
+  policy-file-path:
+    description: Path to a custom .snyk policy file (relative to the repo root)
+    required: false
+    default: "."
 
 runs:
   using: "composite"
@@ -88,12 +98,19 @@ runs:
       if: ${{ inputs.scan-mode == 'code' }}
       run: |
         CMD="snyk test --file=${{ inputs.code-file }} --severity-threshold=${{ inputs.severity-threshold }}"
+
         if [[ "${{ inputs.skip-unresolved }}" == "true" ]]; then
           CMD="$CMD --skip-unresolved"
         fi
+
         if [[ "${{ inputs.exclude-licenses }}" == "true" ]]; then
           CMD="$CMD --exclude-licenses"
         fi
+
+        if [[ "${{ inputs.use-policy-file }}" == "true" ]]; then
+          CMD="$CMD --policy-path=${{ inputs.policy-file-path }}"
+        fi
+
         CMD="$CMD --json-file-output=${{ inputs.json_output_file }}"
 
         echo "Running: $CMD"
@@ -123,7 +140,6 @@ runs:
             return;
           }
 
-          // Build Markdown table
           let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
           for (const v of vulns) {
             const pkg = v.packageName || v.moduleName || 'unknown';
@@ -139,7 +155,6 @@ runs:
             return;
           }
 
-          // Post or update comment
           const comments = await github.rest.issues.listComments({
             issue_number: number,
             owner: context.repo.owner,
