@@ -125,6 +125,8 @@ runs:
         script: |
           const fs = require('fs');
           const path = require('path');
+          const codeMarker = '<!-- snyk-scan-comment-code -->';
+          const iacMarker = '<!-- snyk-scan-comment-iac -->';
 
           const filePath = path.resolve('${{ inputs.json_output_file }}');
           if (!fs.existsSync(filePath)) {
@@ -150,7 +152,7 @@ runs:
           });
           console.log(`💬 Found ${comments.data.length} comments on this PR.`);
 
-          const marker = '<!-- snyk-scan-comment -->';
+          const marker = isIacScan ? iacMarker : codeMarker;
           const existing = comments.data.find(c => c.body.includes(marker));
 
           if (isIacScan) {
@@ -160,12 +162,12 @@ runs:
               ok: r.ok ? "✅" : "❌"
             }));
 
-            let table = "| Target File | OK |\\n|-------------|----|\\n";
+            let table = "| Target File | OK |\n|-------------|----|\n";
             summary.forEach(item => {
-              table += `| ${item.targetFile} | ${item.ok} |\\n`;
+              table += `| ${item.targetFile} | ${item.ok} |\n`;
             });
 
-            body = `${marker}\\n## 📄 Snyk IaC Scan Results\\n\\n${table}`;
+            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\n${table}`;
           } else {
             console.log('🧪 Detected code scan format.');
             const vulns = results.vulnerabilities || [];
@@ -185,7 +187,7 @@ runs:
               return;
             }
 
-            let table = '| Package | Version | Severity | Title |\\n|---------|---------|----------|-------|\\n';
+            let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
             for (const v of vulns) {
               const pkg = v.packageName || v.moduleName || 'unknown';
               const version = v.version || 'unknown';
@@ -194,7 +196,7 @@ runs:
               table += `| ${pkg} | ${version} | ${severity} | ${title} |\\n`;
             }
 
-            body = `${marker}\\n## 🔍 Snyk Code Dependency Scan Results\\n\\n${table}`;
+            body = `${marker}\\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
           }
 
           if (existing) {
