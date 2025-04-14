@@ -29,10 +29,10 @@ jobs:
     - name: Check scan results
       run: |
         # Parse the Snyk scan output
-        scan_output=$(cat ${{ steps.snyk-scan-action.outputs.JSON_FILE_OUTPUT }})
+        scan_output=$(cat ${{ steps.snyk-scan-action.outputs.json-file-output }})
 
         # Get the severity level from the previous step
-        severity="${{ steps.snyk-scan-action.outputs.SEVERITY_THRESHOLD }}"
+        severity="${{ steps.snyk-scan-action.outputs.severity-threshold }}"
 
         # Check the scan output for the specific severity level
         if [[ $scan_output == *"$severity severity"* ]]; then
