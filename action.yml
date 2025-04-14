@@ -165,20 +165,35 @@ runs:
             c.user.type === 'Bot' && c.body.includes('| Package | Version | Severity | Title |')
           );
 
+          if (vulns.length === 0) {
+            console.log('No vulnerabilities found.');
+
+            if (existing) {
+              console.log('Deleting previous Snyk comment since issues were resolved.');
+              await github.rest.issues.deleteComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+            }
+
+            return;
+          }
+
           const body = `## 🔍 Snyk Scan Results\n\n${table}`;
 
-          if (existing) {
-            await github.rest.issues.updateComment({
-              comment_id: existing.id,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body,
-            });
-          } else {
-            await github.rest.issues.createComment({
-              issue_number: number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body,
-            });
-          }
+                    if (existing) {
+                      await github.rest.issues.updateComment({
+                        comment_id: existing.id,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body,
+                      });
+                    } else {
+                      await github.rest.issues.createComment({
+                        issue_number: number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body,
+                      });
+                    }
