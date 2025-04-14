@@ -141,6 +141,7 @@ runs:
             return;
           }
 
+          // Look for existing comment
           const comments = await github.rest.issues.listComments({
             issue_number: number,
             owner: context.repo.owner,
@@ -148,7 +149,7 @@ runs:
           });
 
           const existing = comments.data.find(c =>
-            c.body.includes('<!-- snyk-scan-comment -->')
+            c.user.type === 'Bot' && c.body.includes('| Package | Version | Severity | Title |')
           );
 
           if (vulns.length === 0) {
@@ -176,7 +177,7 @@ runs:
             table += `| ${pkg} | ${version} | ${severity} | ${title} |\\n`;
           }
 
-          const body = `<!-- snyk-scan-comment -->\\n## 🔍 Snyk Scan Results\\n\\n${table}`;
+          const body = `## 🔍 Snyk Scan Results\\n\\n${table}`;
 
           if (existing) {
             await github.rest.issues.updateComment({
