@@ -23,10 +23,13 @@ jobs:
           private_key: ${{ secrets.GH_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      - name: Read tag version
-        id: tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
+      - name: Read version and major tag
+        id: version_info
+        run: |
+            TAG=${GITHUB_REF#refs/tags/}
+            MAJOR=$(echo "$TAG" | grep -oE '^v[0-9]+')
+            echo "VERSION=$TAG" >> $GITHUB_ENV
+            echo "MAJOR_VERSION=$MAJOR" >> $GITHUB_ENV
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -37,3 +40,14 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+      - name: Update major version tag (e.g., v1, v2, v3)
+        env:
+            GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+            echo "Updating major version tag: $MAJOR_VERSION"
+  
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+  
+            git tag -f "$MAJOR_VERSION"
+            git push origin -f "$MAJOR_VERSION"
