@@ -84,7 +84,30 @@ jobs:
           python-package-manager: poetry
 ```
 
-> ✅ **Note:** If `update-pr-with-scan-results` is `true`, ensure your workflow has permission to write PR comments using `pull-requests: write`.
+---
+
+## 🚀 Example Usage (IaC scanning)
+
+```yaml
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  snyk-iac-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Snyk IaC Scan
+        uses: furmidgeuk/snyk-scan-action@v1.0.0
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          snyk-org: ${{ secrets.SNYK_ORG }}
+          scan-mode: iac
+          severity-threshold: high
+          update-pr-with-scan-results: true
+```
+
+> 📘 **Note:** Snyk IaC scans do not require dependency installation. The action will recursively scan Terraform, Kubernetes, CloudFormation, and other supported configuration files.
 
 ---
 
@@ -101,6 +124,7 @@ If vulnerabilities are found, the action will post a Markdown-formatted summary 
 - [x] Support `.snyk` policy files to exclude known/approved vulnerabilities.
 - [x] Add support for installing requirements before code scan.
 - [x] Support for Poetry-managed projects.
+- [x] Add example for IaC scanning.
 - [ ] Improve formatting of PR scan result comments (e.g., sorting, badges, clickable links).
 - [ ] Add support for additional scan modes like `container` or `open source`.
 
