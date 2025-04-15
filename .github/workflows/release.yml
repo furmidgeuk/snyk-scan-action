@@ -14,7 +14,7 @@ name: Create GitHub Release
 #    ✅ Update the major tag (e.g., `v1`) to always point to the latest release
 #
 # 4. Consumers of your action can reference it like:
-#      uses: your-org/your-action@v1
+#      uses: furmidgeuk/snyk-scan-action@v1
 # --------------------------------------------------------------------------------
 
 on:
