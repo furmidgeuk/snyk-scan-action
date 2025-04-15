@@ -1,5 +1,4 @@
 name: Create GitHub Release
-
 # --------------------------------------------------------------------------------
 # HOW TO CREATE A NEW RELEASE
 # --------------------------------------------------------------------------------
@@ -13,22 +12,21 @@ name: Create GitHub Release
 #    ✅ Auto-generate release notes from commits/PRs
 #    ✅ Update the major tag (e.g. `v1`) to point to the latest release
 # --------------------------------------------------------------------------------
-
 on:
   push:
     tags:
       - 'v*.*.*'
-
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0  # Fetch all history and tags for proper changelog generation
+      
       - name: Generate GitHub App token
         id: generate_token
         uses: actions/create-github-app-token@v1
@@ -36,7 +34,7 @@ jobs:
           app-id: ${{ secrets.GH_APP_ID }}
           private-key: ${{ secrets.GH_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-
+      
       - name: Read version and major tag
         id: version_info
         run: |
@@ -44,24 +42,28 @@ jobs:
           MAJOR=$(echo "$TAG" | grep -oE '^v[0-9]+')
           echo "VERSION=$TAG" >> $GITHUB_ENV
           echo "MAJOR_VERSION=$MAJOR" >> $GITHUB_ENV
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-
-      - name: Update major version tag (e.g., v1, v2, v3)
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+      
+      - name: Create GitHub Release with proper changelog
         run: |
-          echo "Updating major version tag: $MAJOR_VERSION"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          # Store the current position of the major version tag
+          PREVIOUS_MAJOR_COMMIT=$(git rev-parse $MAJOR_VERSION 2>/dev/null || echo "")
+          
+          # Create the release with changelog compared to previous version
+          if [ -n "$PREVIOUS_MAJOR_COMMIT" ]; then
+            gh release create $VERSION \
+              --title "Release $VERSION" \
+              --generate-notes \
+              --notes-start-tag $MAJOR_VERSION
+          else
+            # First release of this major version
+            gh release create $VERSION \
+              --title "Release $VERSION" \
+              --generate-notes
+          fi
+          
+          # Now update the major version tag
           git tag -f "$MAJOR_VERSION"
           git push origin -f "$MAJOR_VERSION"
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
