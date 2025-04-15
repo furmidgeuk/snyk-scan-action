@@ -10,12 +10,8 @@ name: Create GitHub Release
 #
 # 3. This workflow will:
 #    ✅ Create a GitHub Release for v1.3.0
-#    ✅ Auto-generate release notes based on commits & PRs
-#    ✅ Ensure changelog compares from the last versioned tag (e.g., v1.2.3 → v1.3.0)
-#    ✅ Update the major tag (e.g., `v1`) to always point to the latest release
-#
-# 4. Consumers of your action can reference it like:
-#      uses: furmidgeuk/snyk-scan-action@v1
+#    ✅ Auto-generate release notes from commits/PRs
+#    ✅ Update the major tag (e.g. `v1`) to point to the latest release
 # --------------------------------------------------------------------------------
 
 on:
@@ -49,21 +45,12 @@ jobs:
           echo "VERSION=$TAG" >> $GITHUB_ENV
           echo "MAJOR_VERSION=$MAJOR" >> $GITHUB_ENV
 
-      - name: Find previous version tag
-        id: previous
-        run: |
-          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
-          PREV=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^$CURRENT_TAG" | head -n1 || true)
-          echo "PREVIOUS_TAG=$PREV" >> $GITHUB_ENV
-          echo "🕘 Previous version tag: $PREV"
-
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.2.1
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
         with:
           tag_name: ${{ env.VERSION }}
           name: Release ${{ env.VERSION }}
           generate_release_notes: true
-          previous_tag_name: ${{ env.PREVIOUS_TAG }}
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
 
