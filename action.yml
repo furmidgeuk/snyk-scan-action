@@ -112,7 +112,7 @@ runs:
         python -m pip install --upgrade pip
         if [[ "${{ inputs.python-package-manager }}" == "poetry" ]]; then
           pip install poetry
-          poetry install
+          poetry install --no-root
         else
           pip install -r ${{ inputs.code-file }}
         fi
