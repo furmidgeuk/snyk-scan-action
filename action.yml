@@ -75,6 +75,34 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Validate Inputs
+      run: |
+        echo "🔍 Validating inputs..."
+
+        if [[ "${{ inputs.scan-mode }}" != "iac" && "${{ inputs.scan-mode }}" != "code" ]]; then
+          echo "❌ Invalid scan-mode '${{ inputs.scan-mode }}'. Must be 'iac' or 'code'."
+          exit 1
+        fi
+
+        if [[ "${{ inputs.scan-mode }}" == "code" && -z "${{ inputs.code-file }}" ]]; then
+          echo "❌ 'code-file' must be provided when scan-mode is 'code'."
+          exit 1
+        fi
+
+        if [[ "${{ inputs.install-requirements }}" == "true" ]]; then
+          if [[ "${{ inputs.python-package-manager }}" != "pip" && "${{ inputs.python-package-manager }}" != "poetry" ]]; then
+            echo "❌ Invalid python-package-manager '${{ inputs.python-package-manager }}'. Must be 'pip' or 'poetry'."
+            exit 1
+          fi
+        fi
+
+        if [[ "${{ inputs.update-pr-with-scan-results }}" == "true" && -z "${{ inputs.json-output-file }}" ]]; then
+          echo "❌ 'json-output-file' must be defined when update-pr-with-scan-results is true."
+          exit 1
+        fi
+
+        echo "✅ All inputs look good."
+      shell: bash
     - name: Checkout Repository
       uses: actions/checkout@v4
 
