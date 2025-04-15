@@ -27,10 +27,6 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history for changelog
       
-      - name: Fetch all tags
-        run: |
-          git fetch --tags --force
-      
       - name: Generate GitHub App token
         id: generate_token
         uses: actions/create-github-app-token@v1
@@ -39,30 +35,46 @@ jobs:
           private-key: ${{ secrets.GH_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       
-      - name: Extract version info
+      - name: Extract version info and find previous version
         id: version_info
         run: |
+          # Current version tag (e.g., v1.0.7)
           TAG=${GITHUB_REF#refs/tags/}
+          # Major version (e.g., v1)
           MAJOR=$(echo "$TAG" | grep -oE '^v[0-9]+')
+          
           echo "VERSION=$TAG" >> $GITHUB_ENV
           echo "MAJOR_VERSION=$MAJOR" >> $GITHUB_ENV
           
-          # Find previous version tag
-          PREV_VERSION=$(git tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "$TAG" | head -n 1 || echo "")
+          # Find the previous version tag (excluding the current one)
+          git fetch --tags --force
+          PREV_VERSION=$(git tag --sort=-v:refname | grep -E "^$MAJOR\.[0-9]+\.[0-9]+$" | grep -v "$TAG" | head -n 1 || echo "")
+          
+          # If no previous version in this major series, find any previous version
+          if [ -z "$PREV_VERSION" ]; then
+            PREV_VERSION=$(git tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "$TAG" | head -n 1 || echo "")
+          fi
+          
           echo "PREV_VERSION=$PREV_VERSION" >> $GITHUB_ENV
           echo "Found previous version: $PREV_VERSION"
       
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
-          generate_release_notes: true
-          # Use previous version tag as starting point if it exists
-          previous_tag: ${{ env.PREV_VERSION }}
+      - name: Create release with GitHub CLI
         env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          # Different behavior based on whether we found a previous version
+          if [ -n "$PREV_VERSION" ]; then
+            echo "Creating release comparing $VERSION with $PREV_VERSION"
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --notes-start-tag "$PREV_VERSION" \
+              --generate-notes
+          else
+            echo "Creating first release: $VERSION"
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --generate-notes
+          fi
       
       - name: Update major version tag
         env:
