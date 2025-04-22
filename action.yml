@@ -182,7 +182,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const fs = require('fs');
+           const fs = require('fs');
           const path = require('path');
           const codeMarker = '<!-- snyk-scan-comment-code -->';
           const iacMarker = '<!-- snyk-scan-comment-iac -->';
@@ -194,7 +194,6 @@ runs:
           }
 
           const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
           const isIacScan = Array.isArray(results) && results[0]?.targetFile !== undefined;
           let body = '';
           const number = context.payload.pull_request?.number ?? context.issue?.number;
@@ -214,37 +213,56 @@ runs:
           const existing = comments.data.find(c => c.body.includes(marker));
 
           if (isIacScan) {
+            if (isIacScan) {
             console.log('🔍 Detected IaC scan format.');
-            const summary = results.map(r => ({
-              targetFile: r.targetFile,
-              ok: r.ok ? "✅" : "❌"
-            }));
 
-            let table = "| Target File | OK |\n|-------------|----|\n";
-            summary.forEach(item => {
-              table += `| ${item.targetFile} | ${item.ok} |\n`;
-            });
+            const rows = [];
 
-            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\n${table}`;
-          } else {
-            console.log('🧪 Detected code scan format.');
-            const vulns = results.vulnerabilities || [];
-            console.log(`⚠️ Found ${vulns.length} vulnerabilities.`);
+            for (const result of results) {
+              if (result.ok) continue;
+              const file = result.targetFile || 'Unknown file';
+              if (!result.findings || result.findings.length === 0) continue;
 
-            if (vulns.length === 0) {
+              for (const finding of result.findings) {
+                const issue = finding.rule?.id || 'N/A';
+                const title = finding.rule?.title || finding.rule?.issue || 'Unknown issue';
+                const severity = finding.rule?.severity || 'unknown';
+                const docLink = finding.rule?.documentation || (finding.rule?.references?.[0] ?? 'N/A');
+                rows.push(`| ${file} | ${severity} | ${title} | [Documentation](${docLink}) |`);
+              }
+            }
+
+            if (rows.length === 0) {
+              console.log('✅ No actionable issues in IaC scan.');
               if (existing) {
-                console.log('🧹 No vulns found — deleting existing comment.');
+                console.log('🧹 Deleting outdated IaC scan comment.');
                 await github.rest.issues.deleteComment({
                   comment_id: existing.id,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                 });
-              } else {
-                console.log('✅ No vulns and no existing comment. Nothing to do.');
               }
               return;
             }
 
+            let table = '| File | Severity | Issue | Link |\n|------|----------|-------|------|\n';
+            table += rows.join('\n');
+
+            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\n${table}`;
+          }
+          } else {
+            console.log('🧪 Detected code scan format.');
+            const vulns = results.vulnerabilities || [];
+            if (vulns.length === 0) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  comment_id: existing.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+              }
+              return;
+            }
             let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
             for (const v of vulns) {
               const pkg = v.packageName || v.moduleName || 'unknown';
@@ -253,12 +271,10 @@ runs:
               const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
               table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
             }
-
             body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
           }
 
           if (existing) {
-            console.log('✏️ Updating existing comment.');
             await github.rest.issues.updateComment({
               comment_id: existing.id,
               owner: context.repo.owner,
@@ -266,7 +282,6 @@ runs:
               body,
             });
           } else {
-            console.log('🆕 Creating new comment.');
             await github.rest.issues.createComment({
               issue_number: number,
               owner: context.repo.owner,
