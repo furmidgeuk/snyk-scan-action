@@ -289,7 +289,8 @@ runs:
             
               let moreInfo = '';
               if (Array.isArray(v.references)) {
-                const ref = v.references.find(url =>
+                const stringRefs = v.references.filter(ref => typeof ref === 'string');
+                const ref = stringRefs.find(url =>
                   url.includes('snyk.io/blog') || 
                   url.includes('huntr.com') || 
                   url.includes('snyk.io/vuln/') ||
@@ -306,7 +307,6 @@ runs:
             
               table += `| ${pkg} | ${version} | ${severity} | ${title} | ${moreInfo} |\n`;
             }
-
             body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
           }
     
