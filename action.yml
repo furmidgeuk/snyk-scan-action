@@ -182,123 +182,118 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-         - name: Post results to PR
-  if: ${{ always() && inputs.update-pr-with-scan-results }}
-  uses: actions/github-script@v7
-  with:
-    script: |
-      const fs = require('fs');
-      const path = require('path');
-      const codeMarker = '<!-- snyk-scan-comment-code -->';
-      const iacMarker = '<!-- snyk-scan-comment-iac -->';
-
-      const filePath = path.resolve('${{ inputs.json-output-file }}');
-      if (!fs.existsSync(filePath)) {
-        console.log('❌ Snyk output file not found:', filePath);
-        return;
-      }
-
-      const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const isIacScan = Array.isArray(results);
-      let body = '';
-      const number = context.payload.pull_request?.number ?? context.issue?.number;
-      if (!number) {
-        console.log('❌ Not running in a pull request context');
-        return;
-      }
-
-      const comments = await github.rest.issues.listComments({
-        issue_number: number,
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-      });
-      console.log(`💬 Found ${comments.data.length} comments on this PR.`);
-
-      const marker = isIacScan ? iacMarker : codeMarker;
-      const existing = comments.data.find(c => c.body.includes(marker));
-
-      if (isIacScan) {
-        console.log('🔍 Detected IaC scan format.');
-        
-        const issues = [];
-        
-        for (const result of results) {
-          if (result.ok === true) continue; // Skip if no issues
-          
-          const issue = {
-            id: result.id || result.publicId || 'N/A',
-            title: result.title || (result.iacDescription?.issue || 'Unknown issue'),
-            severity: result.severity || 'unknown',
-            resourcePath: result.msg || 'Unknown resource',
-            impact: result.iacDescription?.impact || 'Not specified',
-            resolution: result.iacDescription?.resolve || 'Not specified',
-            documentation: result.documentation || 
-                          (result.references && result.references.length > 0 ? result.references[0] : 'N/A')
-          };
-          
-          issues.push(issue);
-        }
-        
-        if (issues.length === 0) {
-          console.log('✅ No actionable issues in IaC scan.');
+          const fs = require('fs');
+          const path = require('path');
+          const codeMarker = '<!-- snyk-scan-comment-code -->';
+          const iacMarker = '<!-- snyk-scan-comment-iac -->';
+    
+          const filePath = path.resolve('${{ inputs.json-output-file }}');
+          if (!fs.existsSync(filePath)) {
+            console.log('❌ Snyk output file not found:', filePath);
+            return;
+          }
+    
+          const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const isIacScan = Array.isArray(results);
+          let body = '';
+          const number = context.payload.pull_request?.number ?? context.issue?.number;
+          if (!number) {
+            console.log('❌ Not running in a pull request context');
+            return;
+          }
+    
+          const comments = await github.rest.issues.listComments({
+            issue_number: number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          console.log(`💬 Found ${comments.data.length} comments on this PR.`);
+    
+          const marker = isIacScan ? iacMarker : codeMarker;
+          const existing = comments.data.find(c => c.body.includes(marker));
+    
+          if (isIacScan) {
+            console.log('🔍 Detected IaC scan format.');
+            
+            const issues = [];
+            
+            for (const result of results) {
+              if (result.ok === true) continue; // Skip if no issues
+              
+              const issue = {
+                id: result.id || result.publicId || 'N/A',
+                title: result.title || (result.iacDescription?.issue || 'Unknown issue'),
+                severity: result.severity || 'unknown',
+                resourcePath: result.msg || 'Unknown resource',
+                impact: result.iacDescription?.impact || 'Not specified',
+                resolution: result.iacDescription?.resolve || 'Not specified',
+                documentation: result.documentation || 
+                              (result.references && result.references.length > 0 ? result.references[0] : 'N/A')
+              };
+              
+              issues.push(issue);
+            }
+            
+            if (issues.length === 0) {
+              console.log('✅ No actionable issues in IaC scan.');
+              if (existing) {
+                console.log('🧹 Deleting outdated IaC scan comment.');
+                await github.rest.issues.deleteComment({
+                  comment_id: existing.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+              }
+              return;
+            }
+    
+            // Create detailed markdown table for IAC issues
+            let table = '| Resource | Severity | Issue | Impact | Resolution | Link |\n|----------|----------|-------|--------|------------|------|\n';
+            
+            for (const issue of issues) {
+              table += `| \`${issue.resourcePath}\` | ${issue.severity} | ${issue.title} | ${issue.impact} | ${issue.resolution} | [Documentation](${issue.documentation}) |\n`;
+            }
+    
+            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\nFound ${issues.length} infrastructure issues:\n\n${table}`;
+          } else {
+            console.log('🧪 Detected code scan format.');
+            const vulns = results.vulnerabilities || [];
+            if (vulns.length === 0) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  comment_id: existing.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+              }
+              return;
+            }
+            let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
+            for (const v of vulns) {
+              const pkg = v.packageName || v.moduleName || 'unknown';
+              const version = v.version || 'unknown';
+              const severity = v.severity || 'unknown';
+              const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
+              table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
+            }
+            body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
+          }
+    
           if (existing) {
-            console.log('🧹 Deleting outdated IaC scan comment.');
-            await github.rest.issues.deleteComment({
+            await github.rest.issues.updateComment({
               comment_id: existing.id,
               owner: context.repo.owner,
               repo: context.repo.repo,
+              body,
             });
-          }
-          return;
-        }
-
-        // Create detailed markdown table for IAC issues
-        let table = '| Resource | Severity | Issue | Impact | Resolution | Link |\n|----------|----------|-------|--------|------------|------|\n';
-        
-        for (const issue of issues) {
-          table += `| \`${issue.resourcePath}\` | ${issue.severity} | ${issue.title} | ${issue.impact} | ${issue.resolution} | [Documentation](${issue.documentation}) |\n`;
-        }
-
-        body = `${marker}\n## 📄 Snyk IaC Scan Results\n\nFound ${issues.length} infrastructure issues:\n\n${table}`;
-      } else {
-        console.log('🧪 Detected code scan format.');
-        const vulns = results.vulnerabilities || [];
-        if (vulns.length === 0) {
-          if (existing) {
-            await github.rest.issues.deleteComment({
-              comment_id: existing.id,
+          } else {
+            await github.rest.issues.createComment({
+              issue_number: number,
               owner: context.repo.owner,
               repo: context.repo.repo,
+              body,
             });
           }
-          return;
-        }
-        let table = '| Package | Version | Severity | Title |\n|---------|---------|----------|-------|\n';
-        for (const v of vulns) {
-          const pkg = v.packageName || v.moduleName || 'unknown';
-          const version = v.version || 'unknown';
-          const severity = v.severity || 'unknown';
-          const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
-          table += `| ${pkg} | ${version} | ${severity} | ${title} |\n`;
-        }
-        body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
-      }
-
-      if (existing) {
-        await github.rest.issues.updateComment({
-          comment_id: existing.id,
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          body,
-        });
-      } else {
-        await github.rest.issues.createComment({
-          issue_number: number,
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          body,
-        });
-      }
           
     - name: Generate PDF report from code scan
       if: ${{ inputs.generate-pdf-report == 'true' && inputs.scan-mode == 'code' }}
