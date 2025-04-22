@@ -194,7 +194,8 @@ runs:
           }
     
           const results = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-          const isIacScan = Array.isArray(results);
+          // Detect if this is an IaC scan based on the presence of infrastructureAsCodeIssues
+          const isIacScan = Array.isArray(results) && results.some(r => r.hasOwnProperty('infrastructureAsCodeIssues'));
           let body = '';
           const number = context.payload.pull_request?.number ?? context.issue?.number;
           if (!number) {
@@ -215,26 +216,35 @@ runs:
           if (isIacScan) {
             console.log('🔍 Detected IaC scan format.');
             
-            const issues = [];
+            // Collect all issues from all scan results
+            const allIssues = [];
             
             for (const result of results) {
-              if (result.ok === true) continue; // Skip if no issues
+              if (result.ok === true && (!result.infrastructureAsCodeIssues || result.infrastructureAsCodeIssues.length === 0)) {
+                continue; // Skip if no issues
+              }
               
-              const issue = {
-                id: result.id || result.publicId || 'N/A',
-                title: result.title || (result.iacDescription?.issue || 'Unknown issue'),
-                severity: result.severity || 'unknown',
-                resourcePath: result.msg || 'Unknown resource',
-                impact: result.iacDescription?.impact || 'Not specified',
-                resolution: result.iacDescription?.resolve || 'Not specified',
-                documentation: result.documentation || 
-                              (result.references && result.references.length > 0 ? result.references[0] : 'N/A')
-              };
+              const targetFile = result.targetFile || 'Unknown file';
               
-              issues.push(issue);
+              // Process each issue in the file
+              if (result.infrastructureAsCodeIssues && result.infrastructureAsCodeIssues.length > 0) {
+                for (const issue of result.infrastructureAsCodeIssues) {
+                  allIssues.push({
+                    file: targetFile,
+                    id: issue.id || issue.publicId || 'N/A',
+                    title: issue.title || (issue.iacDescription?.issue || 'Unknown issue'),
+                    severity: issue.severity || 'unknown',
+                    resourcePath: issue.msg || 'Unknown resource',
+                    impact: issue.iacDescription?.impact || 'Not specified',
+                    resolution: issue.iacDescription?.resolve || 'Not specified',
+                    documentation: issue.documentation || 
+                                  (issue.references && issue.references.length > 0 ? issue.references[0] : 'N/A')
+                  });
+                }
+              }
             }
             
-            if (issues.length === 0) {
+            if (allIssues.length === 0) {
               console.log('✅ No actionable issues in IaC scan.');
               if (existing) {
                 console.log('🧹 Deleting outdated IaC scan comment.');
@@ -248,13 +258,18 @@ runs:
             }
     
             // Create detailed markdown table for IAC issues
-            let table = '| Resource | Severity | Issue | Impact | Resolution | Link |\n|----------|----------|-------|--------|------------|------|\n';
+            let table = '| File | Resource | Severity | Issue | Impact | Resolution | Link |\n|------|----------|----------|-------|--------|------------|------|\n';
             
-            for (const issue of issues) {
-              table += `| \`${issue.resourcePath}\` | ${issue.severity} | ${issue.title} | ${issue.impact} | ${issue.resolution} | [Documentation](${issue.documentation}) |\n`;
+            for (const issue of allIssues) {
+              // Use backticks to format code-like elements and escape any pipe characters
+              const safeTitle = issue.title.replace(/\|/g, '\\|');
+              const safeImpact = issue.impact.replace(/\|/g, '\\|');
+              const safeResolution = issue.resolution.replace(/\|/g, '\\|');
+              
+              table += `| ${issue.file} | \`${issue.resourcePath}\` | ${issue.severity} | ${safeTitle} | ${safeImpact} | ${safeResolution} | [Documentation](${issue.documentation}) |\n`;
             }
     
-            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\nFound ${issues.length} infrastructure issues:\n\n${table}`;
+            body = `${marker}\n## 📄 Snyk IaC Scan Results\n\nFound ${allIssues.length} infrastructure issue${allIssues.length > 1 ? 's' : ''}:\n\n${table}`;
           } else {
             console.log('🧪 Detected code scan format.');
             const vulns = results.vulnerabilities || [];
