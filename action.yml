@@ -138,7 +138,7 @@ runs:
       shell: bash
       continue-on-error: true
     - name: Debug Step  
-      if: ${{ inputs.scan-mode == 'iac' }}
+      if: ${{ inputs.scan-mode == 'code' }}
       run: cat "${{ inputs.json-output-file }}"
       shell: bash
     - name: Install Python requirements
