@@ -71,7 +71,11 @@ inputs:
     description: Python package manager to use for installing dependencies (pip or poetry)
     required: false
     default: "pip"
-
+  generate-html-report:
+    description: Generate an HTML report using snyk-to-html
+    required: false
+    type: boolean
+    default: false
 runs:
   using: "composite"
   steps:
@@ -266,3 +270,16 @@ runs:
               body,
             });
           }
+    - name: Generate HTML report from code scan
+      if: ${{ inputs.generate-html-report == 'true' && inputs.scan-mode == 'code' }}
+      run: |
+        npm install -g snyk-to-html
+        snyk-to-html -i ${{ inputs.json-output-file }} -o snyk-report.html
+      shell: bash
+
+    - name: Upload HTML report as artifact
+      if: ${{ inputs.generate-html-report == 'true' && inputs.scan-mode == 'code' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: snyk-html-report
+        path: snyk-report.html
