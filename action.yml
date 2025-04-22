@@ -71,8 +71,9 @@ inputs:
     description: Python package manager to use for installing dependencies (pip or poetry)
     required: false
     default: "pip"
-  generate-html-report:
-    description: Generate an HTML report using snyk-to-html
+    
+  generate-pdf-report:
+    description: Generate a PDF report using snyk-to-html
     required: false
     type: boolean
     default: false
@@ -270,16 +271,19 @@ runs:
               body,
             });
           }
-    - name: Generate HTML report from code scan
-      if: ${{ inputs.generate-html-report == 'true' && inputs.scan-mode == 'code' }}
+          
+    - name: Generate PDF report from code scan
+      if: ${{ inputs.generate-pdf-report == 'true' && inputs.scan-mode == 'code' }}
       run: |
         npm install -g snyk-to-html
+        sudo apt-get update && sudo apt-get install -y wkhtmltopdf
         snyk-to-html -i ${{ inputs.json-output-file }} -o snyk-report.html
+        wkhtmltopdf snyk-report.html snyk-report.pdf
       shell: bash
 
-    - name: Upload HTML report as artifact
-      if: ${{ inputs.generate-html-report == 'true' && inputs.scan-mode == 'code' }}
+    - name: Upload PDF report as artifact
+      if: ${{ inputs.generate-pdf-report == 'true' && inputs.scan-mode == 'code' }}
       uses: actions/upload-artifact@v4
       with:
-        name: snyk-html-report
-        path: snyk-report.html
+        name: snyk-pdf-report
+        path: snyk-report.pdf
