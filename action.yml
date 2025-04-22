@@ -338,9 +338,3 @@ runs:
       with:
         name: snyk-pdf-report
         path: snyk-report.pdf
-        
-    - name: Upload JSON as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.scan-mode }}-${{ inputs.json-output-file }}
-        path: snyk.json
