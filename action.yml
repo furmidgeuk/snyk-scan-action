@@ -280,18 +280,22 @@ runs:
               }
               return;
             }
+            const seen = new Set();
             let table = '| Package | Version | Severity | Title | More Info |\n|---------|---------|----------|-------|------------|\n';
             for (const v of vulns) {
               const pkg = v.packageName || v.moduleName || 'unknown';
               const version = v.version || 'unknown';
               const severity = v.severity || 'unknown';
               const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
-              let moreInfo = '';
+              const dedupKey = `${pkg}-${version}-${title}`;
+              if (seen.has(dedupKey)) continue;
+              seen.add(dedupKey);
 
+              let moreInfo = '*no link*';
               if (Array.isArray(v.references)) {
                 const ref = v.references.find(r =>
                   typeof r.url === 'string' &&
-                  (r.url.includes('huntr') || r.url.includes('blog') || r.title?.toLowerCase().includes('poc'))
+                   (r.url.includes('snyk.io/blog') || r.url.includes('huntr') || r.title?.toLowerCase().includes('poc'))
                 );
                 if (ref) {
                   moreInfo = `[${ref.title || 'Link'}](${ref.url})`;
