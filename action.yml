@@ -282,6 +282,8 @@ runs:
             }
 
             let table = '| Package | Version | Severity | Title | More Info |\n|---------|---------|----------|-------|------------|\n';
+            const seen = new Set();
+            
             for (const v of vulns) {
               const pkg = v.packageName || v.moduleName || 'unknown';
               const version = v.version || 'unknown';
@@ -289,13 +291,12 @@ runs:
               const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
             
               let moreInfo = '';
+              let refKey = ''; // part of the deduplication key
             
-              // Primary: check for known reference strings
-              const refs = Array.isArray(v.references) ? v.references.filter(ref => typeof ref === 'string') : [];
-            
+              const refs = Array.isArray(v.references) ? v.references.filter(r => typeof r === 'string') : [];
               const ref = refs.find(url =>
-                url.includes('snyk.io/blog') || 
-                url.includes('huntr.com') || 
+                url.includes('snyk.io/blog') ||
+                url.includes('huntr.com') ||
                 url.includes('snyk.io/vuln/') ||
                 url.includes('gist.github.com')
               );
@@ -306,17 +307,23 @@ runs:
                             : ref.includes('vuln') ? 'Snyk'
                             : 'Details';
                 moreInfo = `[${label}](${ref})`;
+                refKey = ref;
               } else if (refs.length > 0) {
-                // Use the first ref if no recognized patterns match
                 moreInfo = `[Reference](${refs[0]})`;
+                refKey = refs[0];
               } else if (v.identifiers?.CVE?.length > 0) {
-                // Fallback to CVE reference if available
                 const cve = v.identifiers.CVE[0];
                 moreInfo = `[CVE-${cve}](https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cve})`;
+                refKey = cve;
               }
+            
+              const signature = `${pkg}-${version}-${title}-${refKey}`;
+              if (seen.has(signature)) continue;
+              seen.add(signature);
             
               table += `| ${pkg} | ${version} | ${severity} | ${title} | ${moreInfo} |\n`;
             }
+
 
   
             body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
