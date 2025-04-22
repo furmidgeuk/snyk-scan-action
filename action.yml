@@ -291,7 +291,7 @@ runs:
               if (seen.has(dedupKey)) continue;
               seen.add(dedupKey);
 
-              let moreInfo = '*no link*';
+              let moreInfo = '';
               if (Array.isArray(v.references)) {
                 const ref = v.references.find(r =>
                   typeof r.url === 'string' &&
