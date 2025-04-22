@@ -280,30 +280,33 @@ runs:
               }
               return;
             }
-            const seen = new Set();
             let table = '| Package | Version | Severity | Title | More Info |\n|---------|---------|----------|-------|------------|\n';
             for (const v of vulns) {
               const pkg = v.packageName || v.moduleName || 'unknown';
               const version = v.version || 'unknown';
               const severity = v.severity || 'unknown';
               const title = (v.title || 'unknown').replace(/\|/g, '-').slice(0, 80);
-              const dedupKey = `${pkg}-${version}-${title}`;
-              if (seen.has(dedupKey)) continue;
-              seen.add(dedupKey);
-
+            
               let moreInfo = '';
               if (Array.isArray(v.references)) {
-                const ref = v.references.find(r =>
-                  typeof r.url === 'string' &&
-                   (r.url.includes('snyk.io/blog') || r.url.includes('huntr') || r.title?.toLowerCase().includes('poc'))
+                const ref = v.references.find(url =>
+                  url.includes('snyk.io/blog') || 
+                  url.includes('huntr.com') || 
+                  url.includes('snyk.io/vuln/') ||
+                  url.includes('gist.github.com')
                 );
                 if (ref) {
-                  moreInfo = `[${ref.title || 'Link'}](${ref.url})`;
+                  const label = ref.includes('blog') ? 'Snyk Blog'
+                              : ref.includes('huntr.com') ? 'PoC'
+                              : ref.includes('vuln') ? 'Snyk'
+                              : 'Details';
+                  moreInfo = `[${label}](${ref})`;
                 }
               }
-              
+            
               table += `| ${pkg} | ${version} | ${severity} | ${title} | ${moreInfo} |\n`;
             }
+
             body = `${marker}\n## 🔍 Snyk Code Dependency Scan Results\n\n${table}`;
           }
     
