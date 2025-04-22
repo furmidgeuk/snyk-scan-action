@@ -12,7 +12,7 @@
 - Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
 - Supports `.snyk` policy files to ignore known/approved issues, including custom paths.
 - Outputs scan results to a JSON file for further use in workflows or audit logs.
-- Optionally generate a standalone HTML report.
+- Optionally generate a standalone PDF report.
 
 ## 📦 Inputs
 
@@ -32,7 +32,7 @@
 | `update-pr-with-scan-results` | Whether to add a PR comment with scan results.                                                                                                         | ❌       | `false`           |
 | `use-policy-file`           | Whether to use a `.snyk` policy file to ignore known/approved issues.                                                                                   | ❌       | `true`            |
 | `policy-file-path`          | Path to a custom `.snyk` policy file (relative to the repo root).                                                                                       | ❌       | `.`               |
-| `generate-html-report`      | Whether to generate a standalone HTML report using `snyk-to-html` for code scans.                                                                     | ❌       | `false`           |
+| `generate-pdf-report`      | Whether to generate a standalone PDF report using `snyk-to-html` for code scans.                                                                     | ❌       | `false`           |
 ---
 
 ## 🚀 Example Usage (pip-based project)
@@ -59,7 +59,7 @@ jobs:
           policy-file-path: "./security/.snyk"
           install-requirements: true
           python-package-manager: pip
-          generate-html-report: true
+          generate-pdf-report: true
 ```
 
 ---
@@ -84,7 +84,7 @@ jobs:
           code-file: "poetry.lock"
           install-requirements: true
           python-package-manager: poetry
-          generate-html-report: true
+          generate-pdf-report: true
 ```
 
 ---
