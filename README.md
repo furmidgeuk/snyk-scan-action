@@ -12,7 +12,7 @@
 - Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
 - Supports `.snyk` policy files to ignore known/approved issues, including custom paths.
 - Outputs scan results to a JSON file for further use in workflows or audit logs.
-- Optionally generate a standalone PDF report.
+- Optionally generate a standalone PDF report.(currently only available for code scanning)
 
 ## 📦 Inputs
 
@@ -33,6 +33,8 @@
 | `use-policy-file`           | Whether to use a `.snyk` policy file to ignore known/approved issues.                                                                                   | ❌       | `true`            |
 | `policy-file-path`          | Path to a custom `.snyk` policy file (relative to the repo root).                                                                                       | ❌       | `.`               |
 | `generate-pdf-report`      | Whether to generate a standalone PDF report using `snyk-to-html` for code scans.                                                                     | ❌       | `false`           |
+| `continue-on-error`         | Whether to allow the workflow to continue if the Snyk scan fails. Set to `true` for non-blocking scans.                                               | ❌       | `false`           |
+
 ---
 
 ## 🚀 Example Usage (pip-based project)
@@ -60,6 +62,7 @@ jobs:
           install-requirements: true
           python-package-manager: pip
           generate-pdf-report: true
+          continue-on-error: true
 ```
 
 ---
@@ -85,6 +88,7 @@ jobs:
           install-requirements: true
           python-package-manager: poetry
           generate-pdf-report: true
+          continue-on-error: true
 ```
 
 ---
@@ -108,6 +112,7 @@ jobs:
           scan-mode: iac
           severity-threshold: high
           update-pr-with-scan-results: true
+          continue-on-error: true
 ```
 
 > 📘 **Note:** Snyk IaC scans do not require dependency installation. The action will recursively scan Terraform, Kubernetes, CloudFormation, and other supported configuration files.
