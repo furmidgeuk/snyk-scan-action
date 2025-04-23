@@ -77,6 +77,13 @@ inputs:
     required: false
     type: boolean
     default: false
+
+  continue-on-error:
+    description: Whether to continue workflow if Snyk scan fails
+    required: false
+    type: boolean
+    default: false   
+    
 runs:
   using: "composite"
   steps:
@@ -136,7 +143,7 @@ runs:
       if: ${{ inputs.scan-mode == 'iac' }}
       run: snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json-output-file }}
       shell: bash
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error }}
 
     - name: Install Python requirements
       if: ${{ inputs.install-requirements == 'true' && inputs.scan-mode == 'code' }}
@@ -172,7 +179,7 @@ runs:
         echo "Running: $CMD"
         eval "$CMD"
       shell: bash
-      continue-on-error: true
+      continue-on-error: ${{ inputs.continue-on-error }}
       
     - name: Post results to PR
       if: ${{ always() && inputs.update-pr-with-scan-results }}
