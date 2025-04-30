@@ -12,7 +12,8 @@
 - Supports additional flags like `--skip-unresolved` and `--exclude-licenses`.
 - Supports `.snyk` policy files to ignore known/approved issues, including custom paths.
 - Outputs scan results to a JSON file for further use in workflows or audit logs.
-- Optionally generate a standalone PDF report.(currently only available for code scanning)
+- Optionally generate a standalone PDF report.(currently only available for code scanning).
+- Adds clickable reference links in PR comments (CVE, Snyk blog, PoCs).
 
 ## 📦 Inputs
 
@@ -121,9 +122,20 @@ jobs:
 
 ## 💬 Pull Request Comment Example
 
-If vulnerabilities are found, the action will post a Markdown-formatted summary as a comment on the PR:
+When vulnerabilities are detected, this action posts a Markdown-formatted summary directly to the pull request with helpful links.
 
-![Snyk scan result comment](https://imgur.com/YTOHD9l.png)
+### Code Scan Example
+
+| Package   | Version | Severity | Title                                | More Info |
+|-----------|---------|----------|--------------------------------------|-----------|
+| jinja2    | 3.1.2   | medium   | Cross-site Scripting (XSS)           | [CVE-2024-22195](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-22195) |
+| requests  | 2.31.0  | medium   | Always-Incorrect Control Flow        | [CVE-2024-35195](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-35195) |
+| setuptools| 68.1.2  | high     | Code Injection                       | [PoC](https://huntr.com/bounties/d6362117-ad57-4e83-951f-b8141c6e7ca5) |
+
+### IaC Scan Example
+| File         | Resource                        | Severity | Issue                              | Impact                              | Resolution                             | Link |
+|--------------|----------------------------------|----------|-------------------------------------|--------------------------------------|----------------------------------------|------|
+| main.tf      | azurerm_storage_account.default | high     | Geo-replication disabled           | Data might be lost during outages    | Set `sku.name` to `GRS` or `RAGRS`     | [Docs](https://docs.microsoft.com/...) |
 
 ---
 
