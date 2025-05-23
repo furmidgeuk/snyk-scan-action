@@ -158,7 +158,24 @@ runs:
     - name: Run Snyk IaC Scan
       if: ${{ inputs.scan-mode == 'iac' }}
       run: |
-        snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json-output-file }} || [ "${{ inputs.continue-on-error }}" == "true" ]
+        set +e
+        snyk iac test --severity-threshold=${{ inputs.severity-threshold }} --report --json-file-output=${{ inputs.json-output-file }}
+        EXIT_CODE=$?
+        set -e
+        
+        # Check if JSON file was created
+        if [[ ! -f "${{ inputs.json-output-file }}" ]]; then
+          echo "⚠️ Snyk scan did not produce output file. Creating empty result file."
+          echo '[]' > "${{ inputs.json-output-file }}"
+        fi
+        
+        # Handle exit code
+        if [[ $EXIT_CODE -ne 0 ]]; then
+          echo "⚠️ Snyk scan exited with code $EXIT_CODE"
+          if [[ "${{ inputs.continue-on-error }}" != "true" ]]; then
+            exit $EXIT_CODE
+          fi
+        fi
       shell: bash
 
     - name: Install Python requirements
@@ -193,7 +210,26 @@ runs:
         CMD="$CMD --json-file-output=${{ inputs.json-output-file }}"
 
         echo "Running: $CMD"
-        eval "$CMD" || [ "${{ inputs.continue-on-error }}" == "true" ]
+        
+        # Run the command and capture exit code
+        set +e
+        eval "$CMD"
+        EXIT_CODE=$?
+        set -e
+        
+        # Check if JSON file was created
+        if [[ ! -f "${{ inputs.json-output-file }}" ]]; then
+          echo "⚠️ Snyk scan did not produce output file. Creating empty result file."
+          echo '{"vulnerabilities": []}' > "${{ inputs.json-output-file }}"
+        fi
+        
+        # Handle exit code
+        if [[ $EXIT_CODE -ne 0 ]]; then
+          echo "⚠️ Snyk scan exited with code $EXIT_CODE"
+          if [[ "${{ inputs.continue-on-error }}" != "true" ]]; then
+            exit $EXIT_CODE
+          fi
+        fi
       shell: bash
 
     - name: Create temporary exclusion file for SAST
@@ -221,8 +257,6 @@ runs:
 
         # Handle include patterns
         if [[ -n "${{ inputs.sast-include }}" ]]; then
-          # For SAST scans, we need to use a different approach for filtering
-          # We'll create a find command to only scan specific files
           echo "Note: Include patterns specified. Snyk Code will scan all supported files in the path."
           echo "Include patterns: ${{ inputs.sast-include }}"
         fi
@@ -244,7 +278,26 @@ runs:
         CMD="$CMD --json-file-output=${{ inputs.json-output-file }}"
 
         echo "Running: $CMD"
-        eval "$CMD" || [ "${{ inputs.continue-on-error }}" == "true" ]
+        
+        # Run the command and capture exit code
+        set +e
+        eval "$CMD"
+        EXIT_CODE=$?
+        set -e
+        
+        # Check if JSON file was created
+        if [[ ! -f "${{ inputs.json-output-file }}" ]]; then
+          echo "⚠️ Snyk scan did not produce output file. Creating empty result file."
+          echo '[]' > "${{ inputs.json-output-file }}"
+        fi
+        
+        # Handle exit code
+        if [[ $EXIT_CODE -ne 0 ]]; then
+          echo "⚠️ Snyk scan exited with code $EXIT_CODE"
+          if [[ "${{ inputs.continue-on-error }}" != "true" ]]; then
+            exit $EXIT_CODE
+          fi
+        fi
       shell: bash
 
     - name: Clean up temporary files
@@ -486,10 +539,47 @@ runs:
     - name: Generate PDF report from scan
       if: ${{ inputs.generate-pdf-report == 'true' && (inputs.scan-mode == 'code' || inputs.scan-mode == 'sast') }}
       run: |
+        # Check if JSON file exists and has content
+        if [[ ! -f "${{ inputs.json-output-file }}" ]]; then
+          echo "❌ Snyk JSON output file not found: ${{ inputs.json-output-file }}"
+          exit 1
+        fi
+        
+        # Check if file has meaningful content
+        if [[ ! -s "${{ inputs.json-output-file }}" ]]; then
+          echo "⚠️ Snyk JSON output file is empty. Skipping PDF generation."
+          exit 0
+        fi
+        
+        echo "📄 Generating PDF report from Snyk results..."
+        
+        # Install required tools
         npm install -g snyk-to-html
         sudo apt-get update && sudo apt-get install -y wkhtmltopdf
-        snyk-to-html -i ${{ inputs.json-output-file }} -o snyk-report.html
-        wkhtmltopdf snyk-report.html snyk-report.pdf
+        
+        # Generate HTML report
+        echo "Converting JSON to HTML..."
+        snyk-to-html -i "${{ inputs.json-output-file }}" -o snyk-report.html
+        
+        # Check if HTML was created successfully
+        if [[ ! -f "snyk-report.html" ]]; then
+          echo "❌ Failed to generate HTML report"
+          exit 1
+        fi
+        
+        # Generate PDF from HTML using full file path
+        echo "Converting HTML to PDF..."
+        FULL_HTML_PATH="$(pwd)/snyk-report.html"
+        wkhtmltopdf --page-size A4 --orientation Portrait --margin-top 1in --margin-bottom 1in --margin-left 1in --margin-right 1in "file://$FULL_HTML_PATH" snyk-report.pdf
+        
+        # Verify PDF was created
+        if [[ -f "snyk-report.pdf" ]]; then
+          echo "✅ PDF report generated successfully: snyk-report.pdf"
+          ls -la snyk-report.pdf
+        else
+          echo "❌ Failed to generate PDF report"
+          exit 1
+        fi
       shell: bash
 
     - name: Upload PDF report as artifact
