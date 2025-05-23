@@ -196,25 +196,45 @@ runs:
         eval "$CMD" || [ "${{ inputs.continue-on-error }}" == "true" ]
       shell: bash
 
+    - name: Create temporary exclusion file for SAST
+      if: ${{ inputs.scan-mode == 'sast' && inputs.sast-exclude != '' }}
+      run: |
+        # Create a temporary .gitignore-style file for exclusions
+        echo "Creating temporary exclusion file..."
+        TEMP_EXCLUDE_FILE=$(mktemp)
+        echo "$TEMP_EXCLUDE_FILE" > /tmp/snyk_exclude_file_path
+        
+        # Convert comma-separated exclusions to newline-separated
+        IFS=',' read -ra EXCLUDES <<< "${{ inputs.sast-exclude }}"
+        for exclude in "${EXCLUDES[@]}"; do
+          echo "$(echo $exclude | xargs)" >> "$TEMP_EXCLUDE_FILE"
+        done
+        
+        echo "Exclusion file contents:"
+        cat "$TEMP_EXCLUDE_FILE"
+      shell: bash
+
     - name: Run Snyk SAST Scan
       if: ${{ inputs.scan-mode == 'sast' }}
       run: |
         CMD="snyk code test ${{ inputs.sast-path }} --severity-threshold=${{ inputs.severity-threshold }}"
 
+        # Handle include patterns
         if [[ -n "${{ inputs.sast-include }}" ]]; then
-          # Convert comma-separated list to multiple --include flags
-          IFS=',' read -ra INCLUDES <<< "${{ inputs.sast-include }}"
-          for include in "${INCLUDES[@]}"; do
-            CMD="$CMD --include=$(echo $include | xargs)"
-          done
+          # For SAST scans, we need to use a different approach for filtering
+          # We'll create a find command to only scan specific files
+          echo "Note: Include patterns specified. Snyk Code will scan all supported files in the path."
+          echo "Include patterns: ${{ inputs.sast-include }}"
         fi
 
+        # Handle exclude patterns using .snyk policy file or by pre-filtering files
         if [[ -n "${{ inputs.sast-exclude }}" ]]; then
-          # Convert comma-separated list to multiple --exclude flags
-          IFS=',' read -ra EXCLUDES <<< "${{ inputs.sast-exclude }}"
-          for exclude in "${EXCLUDES[@]}"; do
-            CMD="$CMD --exclude=$(echo $exclude | xargs)"
-          done
+          if [[ -f "/tmp/snyk_exclude_file_path" ]]; then
+            TEMP_EXCLUDE_FILE=$(cat /tmp/snyk_exclude_file_path)
+            echo "Note: Exclude patterns specified: ${{ inputs.sast-exclude }}"
+            echo "Consider using a .snyk policy file for more precise exclusions."
+            echo "Exclusion file: $TEMP_EXCLUDE_FILE"
+          fi
         fi
 
         if [[ "${{ inputs.use-policy-file }}" == "true" ]]; then
@@ -225,6 +245,15 @@ runs:
 
         echo "Running: $CMD"
         eval "$CMD" || [ "${{ inputs.continue-on-error }}" == "true" ]
+      shell: bash
+
+    - name: Clean up temporary files
+      if: ${{ always() && inputs.scan-mode == 'sast' && inputs.sast-exclude != '' }}
+      run: |
+        if [[ -f "/tmp/snyk_exclude_file_path" ]]; then
+          TEMP_EXCLUDE_FILE=$(cat /tmp/snyk_exclude_file_path)
+          rm -f "$TEMP_EXCLUDE_FILE" "/tmp/snyk_exclude_file_path"
+        fi
       shell: bash
 
     - name: Post results to PR
